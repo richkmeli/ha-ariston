@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -29,9 +30,13 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
     ENERGY_SCAN_INTERVAL,
+    MIN_BUS_ERRORS_SCAN_INTERVAL_SECONDS,
+    MIN_ENERGY_SCAN_INTERVAL_MINUTES,
+    MIN_SCAN_INTERVAL_SECONDS,
     NAME,
     RATED_POWER_W,
 )
+from .coordinator import is_auth_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +48,17 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(API_USER_AGENT, default=ARISTON_USER_AGENT): str,
     }
 )
+
+
+def _option_with_minimum(
+    options: Mapping[str, Any], key: str, default: int, minimum: int
+) -> int:
+    """Return an option value that is safe to use as a form default."""
+    try:
+        value = int(options.get(key, default))
+    except (TypeError, ValueError):
+        value = default
+    return max(value, minimum)
 
 
 class AristonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -91,19 +107,37 @@ class AristonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_show_form(
                     step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
                 )
+            cloud_devices = await ariston.async_discover()
         except ConnectionException as err:
-            _LOGGER.error("Connection error during config flow: %s", err)
-            errors["base"] = "cannot_connect"
+            if is_auth_error(err):
+                _LOGGER.error("Authentication error during config flow: %s", err)
+                errors["base"] = "invalid_auth"
+            else:
+                _LOGGER.error("Connection error during config flow: %s", err)
+                errors["base"] = "cannot_connect"
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception during config flow")
             errors["base"] = "unknown"
         else:
-            cloud_devices = await ariston.async_discover()
             if len(cloud_devices) == 0:
                 errors["base"] = "no_device_found"
-            if len(cloud_devices) == 1:
+            elif self.source == config_entries.SOURCE_REAUTH:
+                reauth_entry = self._get_reauth_entry()
+                matching_device = next(
+                    (
+                        device
+                        for device in cloud_devices
+                        if device.get(DeviceAttribute.GW) == reauth_entry.unique_id
+                    ),
+                    None,
+                )
+                if matching_device is None:
+                    errors["base"] = "no_device_found"
+                else:
+                    return await self.async_create_or_update_entry(matching_device)
+            elif len(cloud_devices) == 1:
                 return await self.async_create_or_update_entry(cloud_devices[0])
-            if len(cloud_devices) > 1:
+            else:
                 for device in cloud_devices:
                     name = device[DeviceAttribute.NAME]
                     model = device[DeviceAttribute.SN]
@@ -118,32 +152,39 @@ class AristonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_create_or_update_entry(self, cloud_device):
         """Create or update config entry."""
+        entry_data = {
+            CONF_USERNAME: self.cloud_username,
+            CONF_PASSWORD: self.cloud_password,
+            API_URL_SETTING: self.cloud_api_url,
+            API_USER_AGENT: self.cloud_api_user_agent,
+            CONF_DEVICE: cloud_device,
+        }
+
+        if self.source == config_entries.SOURCE_REAUTH:
+            # A reauth flow must update its own entry instead of an arbitrary
+            # entry that happens to match the discovered gateway.
+            reauth_entry = self._get_reauth_entry()
+            self.hass.config_entries.async_update_entry(
+                reauth_entry,
+                data={**reauth_entry.data, **entry_data},
+            )
+            await self.hass.config_entries.async_reload(reauth_entry.entry_id)
+            return self.async_abort(reason="reauth_successful")
+
         existing_entry = await self.async_set_unique_id(
             cloud_device[DeviceAttribute.GW], raise_on_progress=False
         )
         if existing_entry:
             self.hass.config_entries.async_update_entry(
                 existing_entry,
-                data={
-                    CONF_USERNAME: self.cloud_username,
-                    CONF_PASSWORD: self.cloud_password,
-                    API_URL_SETTING: self.cloud_api_url,
-                    API_USER_AGENT: self.cloud_api_user_agent,
-                    CONF_DEVICE: cloud_device,
-                },
+                data=entry_data,
             )
             await self.hass.config_entries.async_reload(existing_entry.entry_id)
             return self.async_abort(reason="reauth_successful")
 
         return self.async_create_entry(
             title=cloud_device[DeviceAttribute.NAME] or NAME,
-            data={
-                CONF_USERNAME: self.cloud_username,
-                CONF_PASSWORD: self.cloud_password,
-                API_URL_SETTING: self.cloud_api_url,
-                API_USER_AGENT: self.cloud_api_user_agent,
-                CONF_DEVICE: cloud_device,
-            },
+            data=entry_data,
         )
 
     async def async_step_select(self, user_input=None):
@@ -180,12 +221,23 @@ class AristonOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         options = self.config_entry.options
-        scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
-        energy_scan_interval = options.get(
-            ENERGY_SCAN_INTERVAL, DEFAULT_ENERGY_SCAN_INTERVAL_MINUTES
+        scan_interval = _option_with_minimum(
+            options,
+            CONF_SCAN_INTERVAL,
+            DEFAULT_SCAN_INTERVAL_SECONDS,
+            MIN_SCAN_INTERVAL_SECONDS,
         )
-        bus_errors_scan_interval = options.get(
-            BUS_ERRORS_SCAN_INTERVAL, DEFAULT_BUS_ERRORS_SCAN_INTERVAL_SECONDS
+        energy_scan_interval = _option_with_minimum(
+            options,
+            ENERGY_SCAN_INTERVAL,
+            DEFAULT_ENERGY_SCAN_INTERVAL_MINUTES,
+            MIN_ENERGY_SCAN_INTERVAL_MINUTES,
+        )
+        bus_errors_scan_interval = _option_with_minimum(
+            options,
+            BUS_ERRORS_SCAN_INTERVAL,
+            DEFAULT_BUS_ERRORS_SCAN_INTERVAL_SECONDS,
+            MIN_BUS_ERRORS_SCAN_INTERVAL_SECONDS,
         )
         water_heater_temp_unit_override = options.get(
             CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE, "auto"
@@ -199,15 +251,24 @@ class AristonOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
                         default=scan_interval,
-                    ): int,
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_SCAN_INTERVAL_SECONDS),
+                    ),
                     vol.Optional(
                         ENERGY_SCAN_INTERVAL,
                         default=energy_scan_interval,
-                    ): int,
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_ENERGY_SCAN_INTERVAL_MINUTES),
+                    ),
                     vol.Optional(
                         BUS_ERRORS_SCAN_INTERVAL,
                         default=bus_errors_scan_interval,
-                    ): int,
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_BUS_ERRORS_SCAN_INTERVAL_SECONDS),
+                    ),
                     vol.Optional(
                         CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE,
                         default=water_heater_temp_unit_override,

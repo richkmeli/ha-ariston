@@ -32,18 +32,16 @@ async def async_setup_entry(
     """Set up the Ariston water heater device from config entry."""
     ariston_water_heaters: list[AristonWaterHeater] = []
     for description in ARISTON_WATER_HEATER_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
+        coordinator: DeviceDataUpdateCoordinator | None = entry.runtime_data.get(
             description.coordinator
-        ]
+        )
+        if coordinator is None:
+            continue
 
-        if (
-            coordinator
-            and coordinator.device
-            and coordinator.device.are_device_features_available(
-                description.device_features,
-                description.system_types,
-                description.whe_types,
-            )
+        if coordinator.device and coordinator.device.are_device_features_available(
+            description.device_features,
+            description.system_types,
+            description.whe_types,
         ):
             ariston_water_heaters.append(AristonWaterHeater(coordinator, description))
 

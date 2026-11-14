@@ -9,17 +9,21 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from ariston.ariston_api import ConnectionException
 from ariston.base_device import AristonBaseDevice
 
-from .const import COORDINATOR, DOMAIN
+from .const import COORDINATOR, DOMAIN, MIN_SCAN_INTERVAL_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
 
 # Retryable HTTP status codes
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+# Authentication failures must trigger a reauth flow instead of retrying.
+AUTH_ERROR_STATUS_CODES = {401, 403}
+AUTH_ERROR_MESSAGES = ("invalid token", "login failed")
 # Max retries for non-rate-limit errors
 MAX_RETRIES = 3
 # Base delay for retries (seconds)
@@ -43,6 +47,15 @@ DEVICE_WRITE_PROPS: dict[str, tuple[str, str]] = {
         "async_set_power",
     ),
 }
+
+
+def is_auth_error(error: ConnectionException) -> bool:
+    """Return whether a connection error means the credentials are invalid."""
+    status = error.args[0] if error.args else None
+    if isinstance(status, int) and status in AUTH_ERROR_STATUS_CODES:
+        return True
+    message = str(error).lower()
+    return any(fragment in message for fragment in AUTH_ERROR_MESSAGES)
 
 
 @dataclass
@@ -73,7 +86,9 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[None]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN}-{device.name}-{coordinator_name}",
-            update_interval=timedelta(seconds=scan_interval_seconds),
+            update_interval=timedelta(
+                seconds=max(scan_interval_seconds, MIN_SCAN_INTERVAL_SECONDS)
+            ),
             update_method=self._async_update_and_verify,
         )
 
@@ -190,6 +205,15 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[None]):
                     return
                 except ConnectionException as err:
                     last_exception = err
+                    if is_auth_error(err):
+                        _LOGGER.warning(
+                            "Authentication error communicating with Ariston API: %s",
+                            err,
+                        )
+                        raise ConfigEntryAuthFailed(
+                            f"Authentication failed: {err}"
+                        ) from err
+
                     status_code = err.args[0] if err.args else None
 
                     if status_code in RETRYABLE_STATUS_CODES:
@@ -227,7 +251,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[None]):
                     raise UpdateFailed(
                         f"Error communicating with Ariston API: {err}"
                     ) from err
-                except asyncio.TimeoutError as err:
+                except TimeoutError as err:
                     last_exception = err
                     _LOGGER.warning(
                         "Timeout communicating with Ariston API (attempt %d/%d)",

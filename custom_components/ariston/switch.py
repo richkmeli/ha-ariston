@@ -23,17 +23,15 @@ async def async_setup_entry(
     """Set up the Ariston switches from config entry."""
     ariston_switches: list[AristonSwitch] = []
     for description in ARISTON_SWITCH_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
+        coordinator: DeviceDataUpdateCoordinator | None = entry.runtime_data.get(
             description.coordinator
-        ]
-        if (
-            coordinator
-            and coordinator.device
-            and coordinator.device.are_device_features_available(
-                description.device_features,
-                description.system_types,
-                description.whe_types,
-            )
+        )
+        if coordinator is None:
+            continue
+        if coordinator.device and coordinator.device.are_device_features_available(
+            description.device_features,
+            description.system_types,
+            description.whe_types,
         ):
             ariston_switches.append(
                 AristonSwitch(

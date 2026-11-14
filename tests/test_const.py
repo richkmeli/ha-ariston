@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from ariston.const import ConsumptionTimeInterval, ConsumptionType
+from ariston.const import (
+    ConsumptionTimeInterval,
+    ConsumptionType,
+    DeviceProperties,
+)
 from homeassistant.util import dt as dt_util
 
 from custom_components.ariston.const import (
+    ARISTON_SENSOR_TYPES,
     _daily_energy,
     _energy_last_reset,
     _estimated_power,
@@ -126,3 +131,20 @@ def test_energy_last_reset_is_local_midnight():
     assert last_reset.tzinfo is not None
     assert (last_reset.hour, last_reset.minute, last_reset.second) == (0, 0, 0)
     assert last_reset.date() == dt_util.now().date()
+
+
+def test_dhw_temperature_sensors_use_device_unit():
+    """DHW sensors follow the unit reported by GALEVO/BSB devices."""
+    entity = MagicMock()
+    entity.device.water_heater_temperature_unit = "°F"
+
+    for key in (
+        DeviceProperties.DHW_STORAGE_TEMPERATURE,
+        DeviceProperties.DHW_TEMP,
+    ):
+        description = next(
+            description
+            for description in ARISTON_SENSOR_TYPES
+            if description.key == key
+        )
+        assert description.get_native_unit_of_measurement(entity) == "°F"

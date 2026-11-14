@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from ariston.const import BsbZoneMode, PlantMode, ZoneMode
 
 from . import AristonConfigEntry
-from .const import ARISTON_CLIMATE_TYPES, AristonClimateEntityDescription
+from .const import ARISTON_CLIMATE_TYPES, NAME, AristonClimateEntityDescription
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import AristonEntity
 
@@ -30,17 +30,15 @@ async def async_setup_entry(
     ariston_climates: list[AristonThermostat] = []
 
     for description in ARISTON_CLIMATE_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
+        coordinator: DeviceDataUpdateCoordinator | None = entry.runtime_data.get(
             description.coordinator
-        ]
-        if (
-            coordinator
-            and coordinator.device
-            and coordinator.device.are_device_features_available(
-                description.device_features,
-                description.system_types,
-                description.whe_types,
-            )
+        )
+        if coordinator is None:
+            continue
+        if coordinator.device and coordinator.device.are_device_features_available(
+            description.device_features,
+            description.system_types,
+            description.whe_types,
         ):
             for zone_number in coordinator.device.zone_numbers:
                 ariston_climates.append(
@@ -69,12 +67,10 @@ class AristonThermostat(AristonEntity, ClimateEntity):
     @property
     def name(self) -> str:
         """Return the name of the device."""
-        return f"{self.device.name}"
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique id for the device."""
-        return f"{self.device.gateway}_{self.zone}"
+        base_name = self.device.name or NAME
+        if len(self.device.zone_numbers) > 1:
+            return f"{base_name} Zone {self.zone}"
+        return base_name
 
     @property
     def icon(self):
@@ -155,9 +151,11 @@ class AristonThermostat(AristonEntity, ClimateEntity):
         supported_modes = []
         if self.device.is_zone_mode_options_contains_manual(self.zone):
             supported_modes.append(HVACMode.HEAT)
-            if self.device.plant_mode_supported:
-                if self.device.is_plant_mode_options_contains_cooling:
-                    supported_modes.append(HVACMode.COOL)
+            if (
+                self.device.plant_mode_supported
+                and self.device.is_plant_mode_options_contains_cooling
+            ):
+                supported_modes.append(HVACMode.COOL)
         if self.device.is_zone_mode_options_contains_time_program(self.zone):
             supported_modes.append(HVACMode.AUTO)
         if self.device.is_zone_mode_options_contains_off(self.zone):
@@ -280,18 +278,23 @@ class AristonThermostat(AristonEntity, ClimateEntity):
         zone_modes = self.device.get_zone_mode_options(self.zone)
 
         # When switching away from cooling mode, ensure zone is in appropriate state
-        if current_plant_in_cool and plant_mode != PlantMode.COOLING:
+        if (
+            current_plant_in_cool
+            and plant_mode != PlantMode.COOLING
+            and ZoneMode.MANUAL in zone_modes
+        ):
             # Set zone to manual heat mode before changing plant mode
-            if ZoneMode.MANUAL in zone_modes:
-                await self.device.async_set_zone_mode(ZoneMode.MANUAL, self.zone)
+            await self.device.async_set_zone_mode(ZoneMode.MANUAL, self.zone)
 
         # Set the plant mode
         await self.device.async_set_plant_mode(plant_mode)
 
         # Special handling for OFF mode
-        if plant_mode == PlantMode.OFF:
-            if self.device.is_zone_mode_options_contains_off(self.zone):
-                await self.device.async_set_zone_mode(BsbZoneMode.OFF, self.zone)
+        if (
+            plant_mode == PlantMode.OFF
+            and self.device.is_zone_mode_options_contains_off(self.zone)
+        ):
+            await self.device.async_set_zone_mode(BsbZoneMode.OFF, self.zone)
 
         # Refresh coordinator to get updated device state
         await self.coordinator.async_request_refresh()

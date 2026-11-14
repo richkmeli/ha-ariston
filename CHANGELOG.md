@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the `ariston` library to 0.19.12. This brings a 30-second async timeout, Lux BOOST handling, NuosSplit optimistic caching, GALEVO menu resilience on HTTP 500/550, and GREEN_PLUS/Nuos holiday support.
+- The DHW current and target temperature sensors now use the unit reported by the device instead of always reporting Celsius.
+- Entity unique IDs now derive from stable entity-description keys instead of display names. Existing entity registry entries are migrated automatically, so entity IDs, history and customisations are preserved.
+- Multi-zone climate entities now include the zone in their name (for example `Boiler Zone 1`) instead of all zones sharing the device name.
+- `requirements.txt` now declares the actual minimum Home Assistant version (2026.8.0), matching `hacs.json` and CI.
+- Scan interval options enforce a minimum value in the options flow and are clamped again at startup, so old or manually edited entries cannot poll too aggressively.
+
+### Fixed
+
+- **Setup no longer fails on devices without metering.** Sensor, number, select, climate, switch, binary sensor and water heater platforms now skip entities that belong to an optional coordinator that is not present, instead of raising `KeyError: 'energy_coordinator'`.
+- **Device registry identifiers are stable.** The gateway is now always used as a device identifier, so devices without a serial number no longer share the `(ariston, "")` identifier and merge into one registry entry. Existing devices are migrated in place.
+- **Authentication failures now start reauthentication.** HTTP 401/403 responses and "invalid token"/"login failed" messages raise `ConfigEntryAuthFailed` instead of being retried as generic update failures.
+- **Reauthentication updates the correct config entry.** The reauth flow now uses the entry that requested it and requires the same gateway, instead of updating whichever discovered entry matched.
+- **Device discovery errors are handled by the config flow.** A connection error while listing devices now shows `cannot_connect` instead of escaping the flow.
+- **GALEVO services have a stable lifecycle.** `create_vacation` and `set_item_by_id` are registered once, moved out of the binary sensor platform, removed when the last GALEVO entry unloads, and refresh the target device after a write.
+- **Setup error handling is more accurate.** A missing device or a connection/timeout error raises `ConfigEntryNotReady`, while unexpected errors are re-raised unchanged instead of being reported as retryable.
+
 ## [2.0.0] - 2026-11-14
 
 ### Changed

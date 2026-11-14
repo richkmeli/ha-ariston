@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from ariston.ariston_api import ConnectionException
 from ariston.base_device import AristonBaseDevice
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
+from custom_components.ariston.const import MIN_SCAN_INTERVAL_SECONDS
 from custom_components.ariston.coordinator import DeviceDataUpdateCoordinator
 
 
@@ -64,6 +66,24 @@ async def test_coordinator_initialization(coordinator, mock_device):
     assert coordinator.update_interval.total_seconds() == 300
 
 
+async def test_coordinator_clamps_too_short_interval(mock_hass, mock_device):
+    """A too-short poll interval is raised to the minimum."""
+
+    async def mock_update():
+        pass
+
+    coordinator = DeviceDataUpdateCoordinator(
+        hass=mock_hass,
+        entry=MagicMock(),
+        device=mock_device,
+        scan_interval_seconds=1,
+        coordinator_name="test",
+        async_update_state=mock_update,
+    )
+
+    assert coordinator.update_interval.total_seconds() == MIN_SCAN_INTERVAL_SECONDS
+
+
 async def test_coordinator_rate_limit_backoff(coordinator, mock_device):
     """Test exponential backoff on rate limit (429)."""
     call_count = 0
@@ -73,7 +93,6 @@ async def test_coordinator_rate_limit_backoff(coordinator, mock_device):
         call_count += 1
         if call_count <= 2:
             raise ConnectionException(429)
-        return None
 
     coordinator.update_method = coordinator._async_update_with_retry(
         mock_update_rate_limited
@@ -95,7 +114,6 @@ async def test_coordinator_server_error_retry(coordinator, mock_device):
         call_count += 1
         if call_count <= 2:
             raise ConnectionException(503)
-        return None
 
     coordinator.update_method = coordinator._async_update_with_retry(
         mock_update_server_error
@@ -129,8 +147,8 @@ async def test_coordinator_max_retries_exceeded(coordinator, mock_device):
     assert "500" in str(coordinator.last_exception)
 
 
-async def test_coordinator_non_retryable_error(coordinator, mock_device):
-    """Test non-retryable errors are not retried."""
+async def test_coordinator_auth_error_starts_reauth(coordinator, mock_device):
+    """Authentication failures are not retried and start a reauth flow."""
 
     call_count = 0
 
@@ -147,7 +165,29 @@ async def test_coordinator_non_retryable_error(coordinator, mock_device):
 
     assert call_count == 1
     assert coordinator.last_update_success is False
+    assert isinstance(coordinator.last_exception, ConfigEntryAuthFailed)
     assert "401" in str(coordinator.last_exception)
+    coordinator.config_entry.async_start_reauth_if_available.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ConnectionException(403),
+        ConnectionException("Invalid token"),
+        ConnectionException("Login failed"),
+    ],
+)
+async def test_coordinator_auth_error_variants(coordinator, mock_device, error):
+    """403 responses and login messages also trigger reauth."""
+    coordinator.update_method = coordinator._async_update_with_retry(
+        AsyncMock(side_effect=error)
+    )
+
+    await coordinator.async_refresh()
+
+    assert isinstance(coordinator.last_exception, ConfigEntryAuthFailed)
+    coordinator.config_entry.async_start_reauth_if_available.assert_called_once()
 
 
 async def test_coordinator_timeout_retry(coordinator, mock_device):
@@ -158,8 +198,7 @@ async def test_coordinator_timeout_retry(coordinator, mock_device):
         nonlocal call_count
         call_count += 1
         if call_count <= 1:
-            raise asyncio.TimeoutError()
-        return None
+            raise TimeoutError()
 
     coordinator.update_method = coordinator._async_update_with_retry(
         mock_update_timeout

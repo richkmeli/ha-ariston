@@ -16,11 +16,17 @@ from ariston.const import (
 )
 from homeassistant.components.water_heater import WaterHeaterEntityFeature
 
-from custom_components.ariston import binary_sensor, sensor, switch, water_heater
+from custom_components.ariston import (
+    binary_sensor,
+    number,
+    select,
+    sensor,
+    switch,
+    water_heater,
+)
 from custom_components.ariston.const import (
     BUS_ERRORS_COORDINATOR,
     COORDINATOR,
-    ENERGY_COORDINATOR,
     INSTANTANEOUS_POWER_KEY,
 )
 
@@ -80,13 +86,12 @@ def hass():
 
 @pytest.fixture
 def entry(coordinator):
-    """Create a minimal config entry with the coordinator runtime data."""
+    """Create a config entry for a device without metering."""
     entry = MagicMock()
     entry.unique_id = "entry-id"
     entry.options = {}
     entry.runtime_data = {
         COORDINATOR: coordinator,
-        ENERGY_COORDINATOR: coordinator,
         BUS_ERRORS_COORDINATOR: coordinator,
     }
     return entry
@@ -108,6 +113,18 @@ async def test_sensor_setup_creates_velis_entities(hass, entry, coordinator):
     assert EvoDeviceProperties.RM_TM in keys
     # No metering feature on this device.
     assert "Domestic hot water electricity consumption" not in keys
+
+
+@pytest.mark.parametrize("platform", [sensor, number, select])
+async def test_platforms_skip_metering_entities_without_energy_coordinator(
+    hass, entry, platform
+):
+    """Platforms must not fail when the optional energy coordinator is absent."""
+    async_add_entities = MagicMock()
+
+    await platform.async_setup_entry(hass, entry, async_add_entities)
+
+    async_add_entities.assert_called_once()
 
 
 async def test_power_sensor_requires_rated_power(hass, entry, coordinator):
