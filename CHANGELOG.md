@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GALEVO diagnostics: a zoned `CH heat request` binary sensor and an opt-in estimated `DHW flame` binary sensor.
+- Integration categories metadata, so the integration is classified under thermostats and water heaters in the Home Assistant Marketplace.
+
 ### Changed
 
 - Updated the `ariston` library to 0.19.12. This brings a 30-second async timeout, Lux BOOST handling, NuosSplit optimistic caching, GALEVO menu resilience on HTTP 500/550, and GREEN_PLUS/Nuos holiday support.
@@ -25,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Device discovery errors are handled by the config flow.** A connection error while listing devices now shows `cannot_connect` instead of escaping the flow.
 - **GALEVO services have a stable lifecycle.** `create_vacation` and `set_item_by_id` are registered once, moved out of the binary sensor platform, removed when the last GALEVO entry unloads, and refresh the target device after a write.
 - **Setup error handling is more accurate.** A missing device or a connection/timeout error raises `ConfigEntryNotReady`, while unexpected errors are re-raised unchanged instead of being reported as retryable.
+- **Energy cost number entities accept sub-cent tariffs** thanks to a `0.0001` step, matching the precision used by the Ariston portal.
+- **The `set_item_by_id` service rejects zone 0**, which is not a valid heating zone.
 
 ## [2.0.0] - 2026-11-14
 

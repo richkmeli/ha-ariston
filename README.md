@@ -86,7 +86,7 @@ The exact entities depend on the device model and the features reported by the A
 - **Water heater** — current and target temperature, operation mode and on/off control on supported VELIS models.
 - **Climate** — heating zones on GALEVO and BSB systems.
 - **Sensors** — temperatures, pressures, energy consumption, signal strength, remaining time and diagnostic values.
-- **Binary sensors** — flame, heating pump, holiday mode, heating state, anti-legionella cycle and other device states.
+- **Binary sensors** — flame, heating pump, holiday mode, heating state, anti-legionella cycle, zoned CH heat request, estimated DHW flame and other device states.
 - **Switches** — power, eco mode, anti-legionella, preheating, boost and model-specific options.
 - **Selects** — operation mode, hybrid mode, currency and other configuration choices.
 - **Numbers** — setpoints, heating flow temperature and model-specific configuration values.

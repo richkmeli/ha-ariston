@@ -63,6 +63,8 @@ CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE: Final[str] = (
 )
 RATED_POWER_W: Final[str] = "rated_power_w"
 INSTANTANEOUS_POWER_KEY: Final[str] = "instantaneous_power"
+DEVICE_FEATURE_ZONE_HEAT_REQUEST: Final[str] = "ZoneHeatRequest"
+DEVICE_FEATURE_DHW_FLAME: Final[str] = "DhwFlame"
 
 # Water heater families that expose a boolean heating state (``is_heating``),
 # used to estimate the instantaneous electrical power.
@@ -139,6 +141,22 @@ def _daily_energy(entity: Any, consumption_type: ConsumptionType) -> float | Non
 def _energy_last_reset(entity: Any) -> dt.datetime:
     """Return the start of the local day, when daily counters reset."""
     return dt_util.start_of_local_day()
+
+
+def _get_ch_heat_request(entity: Any) -> bool:
+    """Return whether a central-heating zone is requesting heat."""
+    return bool(entity.device.get_zone_heat_request_value(entity.zone))
+
+
+def _get_dhw_flame(entity: Any) -> bool:
+    """Approximate DHW flame for boilers that only expose a global flame flag."""
+    if not bool(entity.device.is_flame_on_value):
+        return False
+
+    zone_numbers = getattr(entity.device, "zone_numbers", None) or []
+    return not any(
+        bool(entity.device.get_zone_heat_request_value(zone)) for zone in zone_numbers
+    )
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -730,6 +748,25 @@ ARISTON_BINARY_SENSOR_TYPES: list[AristonBinarySensorEntityDescription] = [
         system_types=[SystemType.GALEVO, SystemType.BSB],
     ),
     AristonBinarySensorEntityDescription(
+        key=DEVICE_FEATURE_ZONE_HEAT_REQUEST,
+        name=f"{NAME} CH heat request",
+        icon="mdi:radiator",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        get_is_on=_get_ch_heat_request,
+        system_types=[SystemType.GALEVO],
+        zone=True,
+    ),
+    AristonBinarySensorEntityDescription(
+        key=DEVICE_FEATURE_DHW_FLAME,
+        name=f"{NAME} DHW flame estimated",
+        icon="mdi:water-boiler",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        device_features=[CustomDeviceFeatures.HAS_DHW],
+        get_is_on=_get_dhw_flame,
+        system_types=[SystemType.GALEVO],
+    ),
+    AristonBinarySensorEntityDescription(
         key=DeviceProperties.IS_HEATING_PUMP_ON,
         name=f"{NAME} is heating pump on",
         icon="mdi:heat-pump-outline",
@@ -926,7 +963,7 @@ ARISTON_NUMBER_TYPES: list[AristonNumberEntityDescription] = [
         entity_category=EntityCategory.CONFIG,
         native_min_value=0,
         native_max_value=sys.maxsize,
-        native_step=0.01,
+        native_step=0.0001,
         device_features=[DeviceFeatures.HAS_METERING],
         coordinator=ENERGY_COORDINATOR,
         get_native_value=lambda entity: entity.device.elect_cost,
@@ -942,7 +979,7 @@ ARISTON_NUMBER_TYPES: list[AristonNumberEntityDescription] = [
         entity_category=EntityCategory.CONFIG,
         native_min_value=0,
         native_max_value=sys.maxsize,
-        native_step=0.01,
+        native_step=0.0001,
         device_features=[DeviceFeatures.HAS_METERING],
         coordinator=ENERGY_COORDINATOR,
         get_native_value=lambda entity: entity.device.gas_cost,

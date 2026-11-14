@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from ariston.const import (
+    ConsumptionProperties,
     ConsumptionTimeInterval,
     ConsumptionType,
     DeviceProperties,
@@ -12,10 +13,13 @@ from ariston.const import (
 from homeassistant.util import dt as dt_util
 
 from custom_components.ariston.const import (
+    ARISTON_NUMBER_TYPES,
     ARISTON_SENSOR_TYPES,
     _daily_energy,
     _energy_last_reset,
     _estimated_power,
+    _get_ch_heat_request,
+    _get_dhw_flame,
 )
 
 
@@ -148,3 +152,44 @@ def test_dhw_temperature_sensors_use_device_unit():
             if description.key == key
         )
         assert description.get_native_unit_of_measurement(entity) == "°F"
+
+
+def test_ch_heat_request_reflects_zone_value():
+    """The zoned CH heat request binary sensor reads its own zone."""
+    entity = MagicMock()
+    entity.zone = 2
+    entity.device.get_zone_heat_request_value.return_value = 1
+
+    assert _get_ch_heat_request(entity) is True
+    entity.device.get_zone_heat_request_value.assert_called_once_with(2)
+
+
+def test_dhw_flame_estimated_only_without_heating_request():
+    """A flame with no zone heat request is attributed to DHW."""
+    entity = MagicMock()
+    entity.device.is_flame_on_value = True
+    entity.device.zone_numbers = [1, 2]
+
+    entity.device.get_zone_heat_request_value.side_effect = [False, False]
+    assert _get_dhw_flame(entity) is True
+
+    entity.device.get_zone_heat_request_value.side_effect = [True, False]
+    assert _get_dhw_flame(entity) is False
+
+
+def test_dhw_flame_estimated_is_off_without_flame():
+    """No flame means no DHW flame estimate."""
+    entity = MagicMock()
+    entity.device.is_flame_on_value = False
+
+    assert _get_dhw_flame(entity) is False
+
+
+def test_energy_cost_step_is_fine_grained():
+    """Energy costs accept sub-cent tariffs."""
+    descriptions = {
+        description.key: description for description in ARISTON_NUMBER_TYPES
+    }
+
+    assert descriptions[ConsumptionProperties.ELEC_COST].native_step == 0.0001
+    assert descriptions[ConsumptionProperties.GAS_COST].native_step == 0.0001

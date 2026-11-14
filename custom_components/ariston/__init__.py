@@ -85,7 +85,7 @@ SET_ITEM_BY_ID_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_DEVICE_ID): cv.string,
         vol.Required(ATTR_ITEM_ID): cv.string,
-        vol.Required(ATTR_ZONE): cv.positive_int,
+        vol.Required(ATTR_ZONE): vol.All(cv.positive_int, vol.Range(min=1)),
         vol.Required(ATTR_VALUE): vol.Coerce(float),
     }
 )

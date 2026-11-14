@@ -1,6 +1,7 @@
 {
   "domain": "ariston",
   "name": "Ariston NET Heating & Water Heater",
+  "categories": ["climate.thermostats_heating", "climate.water_heaters"],
   "codeowners": ["@richkmeli"],
   "config_flow": true,
   "dependencies": [],

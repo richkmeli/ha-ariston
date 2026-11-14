@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import voluptuous as vol
 from ariston.ariston_api import ConnectionException
 from ariston.const import DeviceAttribute, SystemType
 from homeassistant.const import (
@@ -28,6 +29,7 @@ from custom_components.ariston import (
     PLATFORMS,
     SERVICE_CREATE_VACATION,
     SERVICE_SET_ITEM_BY_ID,
+    SET_ITEM_BY_ID_SCHEMA,
     _async_register_galevo_services,
     _async_remove_galevo_services,
     _entry_has_galevo_device,
@@ -336,6 +338,19 @@ async def test_create_vacation_service_refreshes_target_device(hass, entry):
 
     target_device.async_set_holiday.assert_awaited_once_with(holiday_end)
     coordinator.async_request_refresh.assert_awaited_once()
+
+
+def test_set_item_schema_requires_a_real_zone():
+    """The set_item_by_id service rejects zone 0."""
+    with pytest.raises(vol.Invalid):
+        SET_ITEM_BY_ID_SCHEMA(
+            {
+                ATTR_DEVICE_ID: "device-id",
+                ATTR_ITEM_ID: "item",
+                ATTR_ZONE: 0,
+                ATTR_VALUE: 42.5,
+            }
+        )
 
 
 async def test_set_item_service_refreshes_target_device(hass, entry):

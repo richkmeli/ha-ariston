@@ -27,6 +27,8 @@ from custom_components.ariston import (
 from custom_components.ariston.const import (
     BUS_ERRORS_COORDINATOR,
     COORDINATOR,
+    DEVICE_FEATURE_DHW_FLAME,
+    DEVICE_FEATURE_ZONE_HEAT_REQUEST,
     INSTANTANEOUS_POWER_KEY,
 )
 
@@ -152,6 +154,40 @@ async def test_binary_sensor_setup_includes_anti_legionella(hass, entry):
     keys = [entity.entity_description.key for entity in _created(async_add_entities)]
     assert EvoLydosDeviceProperties.HEAT_REQ in keys
     assert EvoLydosDeviceProperties.ANTI_LEG in keys
+
+
+async def test_binary_sensor_setup_adds_galevo_diagnostics(hass, entry, coordinator):
+    """GALEVO devices get zoned CH heat request and estimated DHW flame sensors."""
+    device = coordinator.device
+    device.system_type = SystemType.GALEVO
+    device.whe_type = WheType.Unknown
+    device.zone_numbers = [1, 2]
+    device.get_zone_heat_request_value.side_effect = lambda zone: zone == 1
+
+    async_add_entities = MagicMock()
+    await binary_sensor.async_setup_entry(hass, entry, async_add_entities)
+
+    entities = _created(async_add_entities)
+    heat_requests = [
+        entity
+        for entity in entities
+        if entity.entity_description.key == DEVICE_FEATURE_ZONE_HEAT_REQUEST
+    ]
+    assert [entity.zone for entity in heat_requests] == [1, 2]
+    assert heat_requests[0].name == f"{heat_requests[0].entity_description.name} 1"
+    assert heat_requests[0].unique_id == (
+        f"gw-test-{DEVICE_FEATURE_ZONE_HEAT_REQUEST}-1"
+    )
+    assert heat_requests[0].is_on is True
+    assert heat_requests[1].is_on is False
+
+    dhw_flames = [
+        entity
+        for entity in entities
+        if entity.entity_description.key == DEVICE_FEATURE_DHW_FLAME
+    ]
+    assert len(dhw_flames) == 1
+    assert dhw_flames[0].entity_description.entity_registry_enabled_default is False
 
 
 async def test_switch_setup_includes_power(hass, entry):
