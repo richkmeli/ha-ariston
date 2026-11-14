@@ -7,6 +7,7 @@
     "error": {
       "cannot_connect": "Falha ao conectar à API da Ariston",
       "invalid_auth": "Utilizador ou senha inválidos",
+      "no_device_found": "Nenhum dispositivo encontrado na conta Ariston NET",
       "unknown": "Erro inesperado"
     },
     "step": {

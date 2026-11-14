@@ -49,6 +49,7 @@ def coordinator(mock_hass, mock_device):
 
     return DeviceDataUpdateCoordinator(
         hass=mock_hass,
+        entry=MagicMock(),
         device=mock_device,
         scan_interval_seconds=300,
         coordinator_name="test",
@@ -294,6 +295,7 @@ async def test_secondary_coordinator_skips_settings_and_writes(mock_hass, mock_d
 
     coordinator = DeviceDataUpdateCoordinator(
         hass=mock_hass,
+        entry=MagicMock(),
         device=mock_device,
         scan_interval_seconds=300,
         coordinator_name="energy_coordinator",

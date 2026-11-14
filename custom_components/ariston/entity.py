@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from abc import ABC
 import logging
+from abc import ABC
+
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ariston.const import WheType
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,

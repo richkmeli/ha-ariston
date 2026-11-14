@@ -6,9 +6,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from ariston import Ariston, DeviceAttribute
-from ariston.ariston_api import ConnectionException
-from ariston.const import ARISTON_API_URL, ARISTON_USER_AGENT
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_DEVICE,
@@ -17,6 +14,10 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import callback
+
+from ariston import Ariston, DeviceAttribute
+from ariston.ariston_api import ConnectionException
+from ariston.const import ARISTON_API_URL, ARISTON_USER_AGENT
 
 from .const import (
     API_URL_SETTING,
@@ -79,13 +80,13 @@ class AristonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.cloud_api_user_agent = user_input[API_USER_AGENT]
             ariston = Ariston()
 
-            reponse = await ariston.async_connect(
+            response = await ariston.async_connect(
                 self.cloud_username,
                 self.cloud_password,
                 self.cloud_api_url,
                 self.cloud_api_user_agent,
             )
-            if not reponse:
+            if not response:
                 errors["base"] = "invalid_auth"
                 return self.async_show_form(
                     step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
@@ -99,7 +100,7 @@ class AristonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         else:
             cloud_devices = await ariston.async_discover()
             if len(cloud_devices) == 0:
-                errors["base"] = "no device found"
+                errors["base"] = "no_device_found"
             if len(cloud_devices) == 1:
                 return await self.async_create_or_update_entry(cloud_devices[0])
             if len(cloud_devices) > 1:

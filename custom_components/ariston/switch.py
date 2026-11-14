@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from ariston.const import VelisDeviceProperties
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import ARISTON_SWITCH_TYPES, DOMAIN, AristonSwitchEntityDescription
+from ariston.const import VelisDeviceProperties
+
+from . import AristonConfigEntry
+from .const import ARISTON_SWITCH_TYPES, AristonSwitchEntityDescription
 from .coordinator import DeviceDataUpdateCoordinator, PendingWrite
 from .entity import AristonEntity
 
@@ -17,12 +18,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
 ) -> None:
     """Set up the Ariston switches from config entry."""
     ariston_switches: list[AristonSwitch] = []
     for description in ARISTON_SWITCH_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
+        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
             description.coordinator
         ]
         if (

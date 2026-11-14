@@ -13,6 +13,7 @@
     "error": {
       "cannot_connect": "Failed to connect to Ariston API",
       "invalid_auth": "Invalid username or password",
+      "no_device_found": "No device found in the Ariston NET account",
       "unknown": "Unexpected error occurred"
     },
     "abort": {

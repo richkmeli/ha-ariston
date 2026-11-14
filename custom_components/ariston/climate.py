@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import logging
 
-from ariston.const import PlantMode, ZoneMode, BsbZoneMode
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 
-from .const import ARISTON_CLIMATE_TYPES, DOMAIN, AristonClimateEntityDescription
+from ariston.const import BsbZoneMode, PlantMode, ZoneMode
+
+from . import AristonConfigEntry
+from .const import ARISTON_CLIMATE_TYPES, AristonClimateEntityDescription
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import AristonEntity
 
@@ -23,13 +24,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
 ):
     """Set up the Ariston device from config entry."""
     ariston_climates: list[AristonThermostat] = []
 
     for description in ARISTON_CLIMATE_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
+        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
             description.coordinator
         ]
         if (

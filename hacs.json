@@ -1,8 +1,8 @@
 {
-  "name": "Ariston NET",
+  "name": "Ariston NET Heating & Water Heater",
   "zip_release": true,
   "hide_default_branch": true,
   "render_readme": true,
-  "homeassistant": "2024.1.0",
+  "homeassistant": "2026.8.0",
   "filename": "ha-ariston.zip"
 }

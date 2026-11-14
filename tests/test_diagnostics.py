@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from ariston.const import SystemType, WheType
 
-from custom_components.ariston.const import COORDINATOR, DOMAIN, ENERGY_COORDINATOR
+from custom_components.ariston.const import COORDINATOR, ENERGY_COORDINATOR
 from custom_components.ariston.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -48,15 +48,11 @@ async def test_diagnostics_redacts_identifiers():
     """Credentials and device identifiers are redacted from the dump."""
     entry = _entry()
     coordinator = _coordinator()
-    hass = MagicMock()
-    hass.data = {
-        DOMAIN: {
-            entry.unique_id: {
-                COORDINATOR: coordinator,
-                ENERGY_COORDINATOR: coordinator,
-            }
-        }
+    entry.runtime_data = {
+        COORDINATOR: coordinator,
+        ENERGY_COORDINATOR: coordinator,
     }
+    hass = MagicMock()
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 
@@ -77,8 +73,8 @@ async def test_diagnostics_redacts_identifiers():
 async def test_diagnostics_without_coordinators():
     """A not-yet-loaded entry still returns the redacted entry data."""
     entry = _entry()
+    entry.runtime_data = None
     hass = MagicMock()
-    hass.data = {DOMAIN: {}}
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 

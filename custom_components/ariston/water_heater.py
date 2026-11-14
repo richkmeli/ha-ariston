@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import logging
 
-from ariston.const import SystemType
 from homeassistant.components.water_heater import (
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 
+from ariston.const import SystemType
+
+from . import AristonConfigEntry
 from .const import (
     ARISTON_WATER_HEATER_TYPES,
     CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE,
-    DOMAIN,
     NAME,
     AristonWaterHeaterEntityDescription,
 )
@@ -27,12 +27,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
 ):
     """Set up the Ariston water heater device from config entry."""
     ariston_water_heaters: list[AristonWaterHeater] = []
     for description in ARISTON_WATER_HEATER_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
+        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
             description.coordinator
         ]
 

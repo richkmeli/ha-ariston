@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 import logging
 from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from ariston.ariston_api import ConnectionException
 from ariston.base_device import AristonBaseDevice
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import COORDINATOR, DOMAIN
 
@@ -59,6 +61,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[None]):
     def __init__(
         self,
         hass: HomeAssistant,
+        entry: ConfigEntry,
         device: AristonBaseDevice,
         scan_interval_seconds: int,
         coordinator_name: str,
@@ -68,6 +71,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[None]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=f"{DOMAIN}-{device.name}-{coordinator_name}",
             update_interval=timedelta(seconds=scan_interval_seconds),
             update_method=self._async_update_and_verify,

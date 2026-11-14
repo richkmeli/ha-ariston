@@ -1,10 +1,30 @@
 """Constants for the Ariston integration."""
 
-from collections.abc import Callable, Coroutine
-from dataclasses import dataclass
 import datetime as dt
 import sys
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from typing import Any, Final
+
+from homeassistant.components.binary_sensor import BinarySensorEntityDescription
+from homeassistant.components.climate import ClimateEntityDescription
+from homeassistant.components.number import NumberEntityDescription
+from homeassistant.components.select import SelectEntityDescription
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntityDescription,
+    SensorStateClass,
+)
+from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.const import (
+    EntityCategory,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfTemperature,
+    UnitOfTime,
+)
+from homeassistant.helpers.entity import EntityDescription
+from homeassistant.util import dt as dt_util
 
 from ariston.const import (
     ARISTON_BUS_ERRORS,
@@ -28,24 +48,6 @@ from ariston.const import (
     VelisDeviceProperties,
     WheType,
 )
-from homeassistant.components.binary_sensor import BinarySensorEntityDescription
-from homeassistant.components.climate import ClimateEntityDescription
-from homeassistant.components.number import NumberEntityDescription
-from homeassistant.components.select import SelectEntityDescription
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntityDescription,
-    SensorStateClass,
-)
-from homeassistant.components.switch import SwitchEntityDescription
-from homeassistant.const import (
-    UnitOfEnergy,
-    UnitOfPower,
-    UnitOfTemperature,
-    UnitOfTime,
-)
-from homeassistant.helpers.entity import EntityCategory, EntityDescription
-from homeassistant.util import dt as dt_util
 
 DOMAIN: Final[str] = "ariston"
 NAME: Final[str] = "Ariston"

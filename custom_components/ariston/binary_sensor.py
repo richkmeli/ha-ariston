@@ -5,14 +5,16 @@ from __future__ import annotations
 import logging
 
 import voluptuous as vol
-
-from ariston.const import DeviceProperties, SystemType
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 
+from ariston.const import DeviceProperties, SystemType
+
+from . import AristonConfigEntry
 from .const import (
     ARISTON_BINARY_SENSOR_TYPES,
     COORDINATOR,
@@ -36,12 +38,12 @@ CREATE_VACATION_SCHEMA = vol.Schema(
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
 ) -> None:
     """Set up the Ariston binary sensors from config entry."""
     ariston_binary_sensors: list[AristonBinarySensor] = []
     for description in ARISTON_BINARY_SENSOR_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
+        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
             description.coordinator
         ]
         if (
@@ -65,14 +67,21 @@ async def async_setup_entry(
             end_date = service_call.data.get(ATTR_END_DATE)
 
             device_registry = dr.async_get(hass)
-            device = device_registry.devices[device_id]
+            device = device_registry.async_get(device_id)
+            if device is None:
+                raise ServiceValidationError("Device not found")
 
-            entry = hass.config_entries.async_get_entry(
-                next(iter(device.config_entries))
+            entry_id = next(iter(device.config_entries), None)
+            target_entry = (
+                hass.config_entries.async_get_entry(entry_id)
+                if entry_id is not None
+                else None
             )
-            coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][
-                entry.unique_id
-            ][COORDINATOR]
+            if target_entry is None or target_entry.runtime_data is None:
+                raise ServiceValidationError("Device entry is not loaded")
+            coordinator: DeviceDataUpdateCoordinator = target_entry.runtime_data[
+                COORDINATOR
+            ]
             await coordinator.device.async_set_holiday(end_date)
             for ariston_binary_sensor in ariston_binary_sensors:
                 if (

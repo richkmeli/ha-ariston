@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import BUS_ERRORS_COORDINATOR, COORDINATOR, DOMAIN, ENERGY_COORDINATOR
+from . import AristonConfigEntry
+from .const import BUS_ERRORS_COORDINATOR, COORDINATOR, ENERGY_COORDINATOR
 
 # Credentials, gateway identifiers and plant geolocation must never leave the
 # user's instance when a diagnostics dump is attached to an issue.
@@ -45,10 +45,10 @@ def _device_diagnostics(device: Any) -> dict[str, Any]:
 
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant, entry: AristonConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    entry_data = hass.data.get(DOMAIN, {}).get(entry.unique_id, {})
+    entry_data = entry.runtime_data or {}
 
     diagnostics: dict[str, Any] = {
         "entry": {

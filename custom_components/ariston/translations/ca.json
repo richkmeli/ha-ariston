@@ -7,6 +7,7 @@
     "error": {
       "cannot_connect": "No s'ha pogut connectar a l'API d'Ariston",
       "invalid_auth": "Usuari o contrasenya invàlids",
+      "no_device_found": "No s'ha trobat cap dispositiu al compte d'Ariston NET",
       "unknown": "Error inesperat"
     },
     "step": {

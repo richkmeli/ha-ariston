@@ -5,10 +5,6 @@ from __future__ import annotations
 import logging
 
 import voluptuous as vol
-
-from ariston import Ariston, DeviceAttribute, SystemType
-from ariston.ariston_api import ConnectionException
-from ariston.const import ARISTON_API_URL, ARISTON_USER_AGENT
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_DEVICE_ID,
@@ -19,9 +15,18 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    ServiceValidationError,
+)
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.util.unit_system import METRIC_SYSTEM
+
+from ariston import Ariston, DeviceAttribute, SystemType
+from ariston.ariston_api import ConnectionException
+from ariston.const import ARISTON_API_URL, ARISTON_USER_AGENT
 
 from .const import (
     API_URL_SETTING,
@@ -41,10 +46,12 @@ from .coordinator import DeviceDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+type AristonConfigEntry = ConfigEntry[dict[str, DeviceDataUpdateCoordinator]]
+
 # Config schema for config entry only integration
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-PLATFORMS: list[str] = [
+PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
     Platform.NUMBER,
@@ -70,7 +77,7 @@ SET_ITEM_BY_ID_SCHEMA = vol.Schema(
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: AristonConfigEntry) -> bool:
     """Set up Ariston from a config entry."""
     ariston = Ariston()
     try:
@@ -78,13 +85,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         api_user_agent = entry.data.get(API_USER_AGENT, ARISTON_USER_AGENT)
 
-        reponse = await ariston.async_connect(
+        response = await ariston.async_connect(
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
             api_url_setting,
             api_user_agent,
         )
-        if not reponse:
+        if not response:
             _LOGGER.error(
                 "Failed to connect to Ariston with device: %s",
                 entry.data[CONF_DEVICE].get(DeviceAttribute.NAME),
@@ -116,7 +123,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS
         )
         coordinator = DeviceDataUpdateCoordinator(
-            hass, device, scan_interval_seconds, COORDINATOR, device.async_update_state
+            hass,
+            entry,
+            device,
+            scan_interval_seconds,
+            COORDINATOR,
+            device.async_update_state,
         )
         rated_power_w = entry.options.get(RATED_POWER_W)
         try:
@@ -127,26 +139,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("Ignoring invalid rated power option: %s", rated_power_w)
             coordinator.rated_power_w = None
 
-        hass.data.setdefault(DOMAIN, {}).setdefault(
-            entry.unique_id, {COORDINATOR: {}, ENERGY_COORDINATOR: {}}
-        )
-        hass.data[DOMAIN][entry.unique_id][COORDINATOR] = coordinator
-
         await coordinator.async_config_entry_first_refresh()
+
+        coordinators: dict[str, DeviceDataUpdateCoordinator] = {
+            COORDINATOR: coordinator
+        }
 
         bus_errors_scan_interval_seconds = entry.options.get(
             BUS_ERRORS_SCAN_INTERVAL, DEFAULT_BUS_ERRORS_SCAN_INTERVAL_SECONDS
         )
         bus_errors_coordinator = DeviceDataUpdateCoordinator(
             hass,
+            entry,
             device,
             bus_errors_scan_interval_seconds,
             BUS_ERRORS_COORDINATOR,
             device.async_get_bus_errors,
         )
-        hass.data[DOMAIN][entry.unique_id][BUS_ERRORS_COORDINATOR] = (
-            bus_errors_coordinator
-        )
+        coordinators[BUS_ERRORS_COORDINATOR] = bus_errors_coordinator
         # Bus errors are diagnostic data: a failing endpoint must not block setup.
         await bus_errors_coordinator.async_refresh()
 
@@ -156,16 +166,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             energy_coordinator = DeviceDataUpdateCoordinator(
                 hass,
+                entry,
                 device,
                 energy_interval_minutes * 60,
                 ENERGY_COORDINATOR,
                 device.async_update_energy,
             )
-            hass.data[DOMAIN][entry.unique_id][ENERGY_COORDINATOR] = energy_coordinator
+            coordinators[ENERGY_COORDINATOR] = energy_coordinator
             # Energy data is optional: do not fail setup if the endpoint is down.
             await energy_coordinator.async_refresh()
 
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        entry.runtime_data = coordinators
+        try:
+            await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        except Exception:
+            entry.runtime_data = None
+            raise
 
         entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -178,15 +194,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 zone = service_call.data.get(ATTR_ZONE)
                 value = service_call.data.get(ATTR_VALUE)
 
-                device_registry = dr.async_get(hass)
-                device = device_registry.devices[device_id]
-
-                entry = hass.config_entries.async_get_entry(
-                    next(iter(device.config_entries))
+                device_entry = dr.async_get(hass).async_get(device_id)
+                if device_entry is None:
+                    raise ServiceValidationError("Device not found")
+                entry_id = next(iter(device_entry.config_entries), None)
+                target_entry = (
+                    hass.config_entries.async_get_entry(entry_id)
+                    if entry_id is not None
+                    else None
                 )
-                coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][
-                    entry.unique_id
-                ][COORDINATOR]
+                if target_entry is None or target_entry.runtime_data is None:
+                    raise ServiceValidationError("Device entry is not loaded")
+                coordinator: DeviceDataUpdateCoordinator = target_entry.runtime_data[
+                    COORDINATOR
+                ]
                 await coordinator.device.async_set_item_by_id(item_id, value, zone)
 
             hass.services.async_register(
@@ -207,16 +228,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def update_listener(hass: HomeAssistant, entry: AristonConfigEntry) -> None:
     """Update listener."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AristonConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.unique_id)
+        entry.runtime_data = None
 
     return unload_ok

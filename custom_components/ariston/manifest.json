@@ -1,6 +1,6 @@
 {
   "domain": "ariston",
-  "name": "Ariston",
+  "name": "Ariston NET Heating & Water Heater",
   "codeowners": ["@richkmeli"],
   "config_flow": true,
   "dependencies": [],

@@ -20,7 +20,6 @@ from custom_components.ariston import binary_sensor, sensor, switch, water_heate
 from custom_components.ariston.const import (
     BUS_ERRORS_COORDINATOR,
     COORDINATOR,
-    DOMAIN,
     ENERGY_COORDINATOR,
     INSTANTANEOUS_POWER_KEY,
 )
@@ -74,27 +73,22 @@ def coordinator(device):
 
 
 @pytest.fixture
-def hass(coordinator):
-    """Create a minimal Home Assistant object with the integration data."""
-    hass = MagicMock()
-    hass.data = {
-        DOMAIN: {
-            "entry-id": {
-                COORDINATOR: coordinator,
-                ENERGY_COORDINATOR: coordinator,
-                BUS_ERRORS_COORDINATOR: coordinator,
-            }
-        }
-    }
-    return hass
+def hass():
+    """Create a minimal Home Assistant object."""
+    return MagicMock()
 
 
 @pytest.fixture
-def entry():
-    """Create a minimal config entry."""
+def entry(coordinator):
+    """Create a minimal config entry with the coordinator runtime data."""
     entry = MagicMock()
     entry.unique_id = "entry-id"
     entry.options = {}
+    entry.runtime_data = {
+        COORDINATOR: coordinator,
+        ENERGY_COORDINATOR: coordinator,
+        BUS_ERRORS_COORDINATOR: coordinator,
+    }
     return entry
 
 

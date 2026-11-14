@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from . import AristonConfigEntry
 from .const import (
     ARISTON_SENSOR_TYPES,
-    DOMAIN,
     INSTANTANEOUS_POWER_KEY,
     AristonSensorEntityDescription,
 )
@@ -22,13 +21,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
 ) -> None:
     """Set up the Ariston sensors from config entry."""
     ariston_sensors: list[AristonSensor] = []
 
     for description in ARISTON_SENSOR_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
+        coordinator: DeviceDataUpdateCoordinator = entry.runtime_data[
             description.coordinator
         ]
         if (

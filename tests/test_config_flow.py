@@ -8,8 +8,8 @@ import pytest
 from ariston.ariston_api import ConnectionException
 
 from custom_components.ariston.config_flow import (
-    AristonConfigFlow,
     STEP_USER_DATA_SCHEMA,
+    AristonConfigFlow,
 )
 
 
@@ -121,7 +121,7 @@ async def test_async_step_user_no_devices(config_flow):
         result = await config_flow.async_step_user(user_input)
 
         assert result["type"] == "form"
-        assert result["errors"]["base"] == "no device found"
+        assert result["errors"]["base"] == "no_device_found"
 
 
 async def test_async_step_user_multiple_devices(config_flow):

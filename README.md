@@ -1,4 +1,4 @@
-# Ariston NET
+# Ariston NET Heating & Water Heater
 
 Home Assistant integration for Ariston NET-compatible heating and water-heating devices. It uses the Ariston API directly and does not scrape the Ariston website.
 
@@ -33,7 +33,7 @@ Other models may work. If your model is not listed, open an issue or pull reques
 
 ## Requirements
 
-- Home Assistant 2024.1.0 or newer.
+- Home Assistant 2026.8.0 or newer. Version 2.0.0 raises the minimum Home Assistant version; users on older releases must stay on integration 1.0.0.
 - An Ariston NET account with access to the device.
 - Internet access from Home Assistant to the Ariston cloud API.
 - A supported heating or water-heating device.
@@ -47,7 +47,7 @@ This fork is not in the default HACS store. Add it as a custom repository:
 1. Open **HACS → Integrations**.
 2. Open the three-dot menu and choose **Custom repositories**.
 3. Add `https://github.com/richkmeli/ha-ariston` with category **Integration**.
-4. Search for **Ariston NET**, install it and restart Home Assistant.
+4. Search for **Ariston NET Heating & Water Heater**, install it and restart Home Assistant.
 
 ### Manual
 
@@ -58,7 +58,7 @@ This fork is not in the default HACS store. Add it as a custom repository:
 ## Configuration
 
 1. Go to **Settings → Devices & services → Add integration**.
-2. Search for **Ariston NET**.
+2. Search for **Ariston NET Heating & Water Heater**.
 3. Enter the username and password of your Ariston NET account.
 4. If the account has more than one device, select the device to add.
 5. Finish the setup. The integration creates the entities supported by the device.
@@ -203,7 +203,7 @@ If you prefer two separate icons, keep `water_heater.ariston` for the mode and t
 
 ## Diagnostics
 
-If something does not work, download a diagnostics dump from **Settings → Devices & services → Ariston → ⋮ → Download diagnostics** and attach it to the issue. Credentials, gateway identifiers and geolocation are redacted automatically. The dump contains the device type, features, plant settings, raw state and consumption sequences.
+If something does not work, download a diagnostics dump from **Settings → Devices & services → Ariston NET Heating & Water Heater → ⋮ → Download diagnostics** and attach it to the issue. Credentials, gateway identifiers and geolocation are redacted automatically. The dump contains the device type, features, plant settings, raw state and consumption sequences.
 
 ## Troubleshooting
 
@@ -246,11 +246,13 @@ logger:
 
 ## Removal
 
-1. Remove the **Ariston NET** entry from **Settings → Devices & services**.
+1. Remove the **Ariston NET Heating & Water Heater** entry from **Settings → Devices & services**.
 2. Uninstall the integration from HACS, or delete `custom_components/ariston`.
 3. Restart Home Assistant.
 
 ## Development
+
+Python 3.14 or newer is required by Home Assistant 2026.8.
 
 ```bash
 python -m venv .venv
