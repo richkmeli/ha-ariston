@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-14
+
+### Changed
+
+- **Breaking:** the minimum supported Home Assistant version is now 2026.8.0. Users on older releases stay on integration 1.0.0.
+- The integration is named **Ariston NET Heating & Water Heater** in HACS and in the Home Assistant integration list. The domain, entity IDs, unique IDs and config entries are unchanged.
+- Coordinators are stored in `entry.runtime_data` instead of `hass.data`, and the coordinator now receives the config entry. This removes the Home Assistant warning about coordinators created without a config entry and lets Home Assistant shut them down when the entry unloads.
+- Device and entity imports use the current Home Assistant locations (`DeviceInfo` from the device registry, `EntityCategory` from `homeassistant.const`).
+- Services resolve devices through the device registry API and raise a validation error when the target device or entry is missing.
+
+### Fixed
+
+- The config flow now reports a missing device with the translated `no_device_found` key instead of the internal string `no device found`.
+
+### Internal
+
+- CI runs on Python 3.14, with a dedicated job against the minimum Home Assistant 2026.8.0.
+
 ## [1.0.0] - 2026-11-14
 
 ### Added
