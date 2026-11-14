@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Documentation: the README was rewritten in a text-only format aligned with Home Assistant conventions. Screenshots and badges were removed, and installation, options, entities, services, troubleshooting and removal are now easier to find.
+
 ## [0.20.13] - 2026-11-14
 
 ### Changed
