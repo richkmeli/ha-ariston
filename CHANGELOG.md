@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-11-14
+
+### Added
+
+- First stable release under [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `main` is the only maintained branch. Releases are cut from `main`.
+- Commit messages now follow [Conventional Commits](https://www.conventionalcommits.org/); the policy is documented in `CONTRIBUTING.md`.
 - Documentation: the README was rewritten in a text-only format aligned with Home Assistant conventions. Screenshots and badges were removed, and installation, options, entities, services, troubleshooting and removal are now easier to find.
+- The HACS release asset remains `ha-ariston.zip`; existing installations update normally from v0.20.13.
+
+Existing entity IDs, unique IDs and configuration entries are unchanged.
 
 ## [0.20.13] - 2026-11-14
 
