@@ -265,6 +265,8 @@ CI, HACS validation, hassfest and CodeQL run on every push to `main`.
 
 Issues and pull requests are welcome at [richkmeli/ha-ariston](https://github.com/richkmeli/ha-ariston). Include the device model, Home Assistant version and diagnostics when reporting a problem. Remove any personal information before posting logs or diagnostics.
 
+`main` is the only maintained branch. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) and releases follow [Semantic Versioning](https://semver.org/). See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch policy and release process.
+
 ## Credits
 
 - [fustom](https://github.com/fustom) for the upstream [ariston-remotethermo-home-assistant-v3](https://github.com/fustom/ariston-remotethermo-home-assistant-v3) integration.
