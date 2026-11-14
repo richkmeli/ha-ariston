@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: I have a question or need support
-    url: https://github.com/richkmeli/ariston-remotethermo-home-assistant-v3/issues
+    url: https://github.com/richkmeli/ha-ariston/issues
     about: Use the issue tracker for questions, support, and bug reports.
