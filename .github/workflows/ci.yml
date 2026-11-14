@@ -73,12 +73,12 @@ jobs:
         run: |
           git archive \
             --format=zip \
-            --output="$GITHUB_WORKSPACE/ariston-remotethermo-home-assistant-v3.zip" \
+            --output="$GITHUB_WORKSPACE/ha-ariston.zip" \
             HEAD:custom_components/ariston
 
       - name: Verify HACS-compatible layout
         run: |
-          unzip -Z1 ariston-remotethermo-home-assistant-v3.zip > /tmp/zip-contents.txt
+          unzip -Z1 ha-ariston.zip > /tmp/zip-contents.txt
           grep -qx 'manifest.json' /tmp/zip-contents.txt
           grep -qx '__init__.py' /tmp/zip-contents.txt
           if grep -q '^ariston/' /tmp/zip-contents.txt; then
@@ -89,5 +89,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ariston-remotethermo-home-assistant-v3.zip
-          path: ariston-remotethermo-home-assistant-v3.zip
+          name: ha-ariston.zip
+          path: ha-ariston.zip

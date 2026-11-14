@@ -22,12 +22,12 @@ jobs:
         run: |
           git archive \
             --format=zip \
-            --output="$GITHUB_WORKSPACE/ariston-remotethermo-home-assistant-v3.zip" \
+            --output="$GITHUB_WORKSPACE/ha-ariston.zip" \
             "${{ github.event.release.tag_name }}:custom_components/ariston"
 
       - name: Verify HACS-compatible layout
         run: |
-          unzip -Z1 ariston-remotethermo-home-assistant-v3.zip > /tmp/zip-contents.txt
+          unzip -Z1 ha-ariston.zip > /tmp/zip-contents.txt
           grep -qx 'manifest.json' /tmp/zip-contents.txt
           grep -qx '__init__.py' /tmp/zip-contents.txt
           if grep -q '^ariston/' /tmp/zip-contents.txt; then
@@ -39,4 +39,4 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: ariston-remotethermo-home-assistant-v3.zip
+          files: ha-ariston.zip

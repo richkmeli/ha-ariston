@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.13] - 2026-11-14
+
+### Changed
+- **Repository renamed** from `ariston-remotethermo-home-assistant-v3` to [`ha-ariston`](https://github.com/richkmeli/ha-ariston). Documentation, manifest links, issue templates and HACS metadata now use the new name.
+- **HACS release asset renamed** to `ha-ariston.zip`; existing installations update normally from v0.20.13 onwards.
+
 ## [0.20.12] - 2026-10-26
 
 ### Changed

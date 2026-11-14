@@ -3,10 +3,12 @@
 [![HACS Action](https://github.com/richkmeli/ha-ariston/actions/workflows/hacs.yml/badge.svg)](https://github.com/richkmeli/ha-ariston/actions/workflows/hacs.yml)
 [![Validate with hassfest](https://github.com/richkmeli/ha-ariston/actions/workflows/hassfest.yml/badge.svg)](https://github.com/richkmeli/ha-ariston/actions/workflows/hassfest.yml)
 [![CI](https://github.com/richkmeli/ha-ariston/actions/workflows/ci.yml/badge.svg)](https://github.com/richkmeli/ha-ariston/actions/workflows/ci.yml)
-# Ariston NET remotethermo integration for Home Assistant
+# Ariston NET remotethermo integration for Home Assistant (ha-ariston)
 This is a fork of [fustom/ariston-remotethermo-home-assistant-v3](https://github.com/fustom/ariston-remotethermo-home-assistant-v3), maintained by [@richkmeli](https://github.com/richkmeli).
 The original integration was inspired by chomupashchuk's work https://github.com/chomupashchuk/ariston-remotethermo-home-assistant-v2
 It does not use the Ariston website: it uses the Ariston API reverse-engineered by the upstream project.
+
+> The repository was renamed from `ariston-remotethermo-home-assistant-v3` to [`ha-ariston`](https://github.com/richkmeli/ha-ariston). Old links redirect automatically, and HACS installations keep updating from the releases.
 
 
 | [This fork](https://github.com/richkmeli/ha-ariston)  | [Chomupashchuk's v2 integration](https://github.com/chomupashchuk/ariston-remotethermo-home-assistant-v2) |
@@ -49,8 +51,23 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history. Recent highlights
 Feel free to test something else and open an issue or pull request in this fork: https://github.com/richkmeli/ha-ariston/issues
 
 ## Installation
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=richkmeli&repository=ha-ariston&category=integration) or copy the `custom_components/ariston` folder to your configuration/custom_components path.
-Use the add integration UI to set up your device.
+
+### HACS (recommended)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=richkmeli&repository=ha-ariston&category=integration)
+
+This fork is not in the default HACS store, so add it as a custom repository:
+
+1. Open **HACS → Integrations**.
+2. Open the three-dot menu → **Custom repositories**.
+3. Add `https://github.com/richkmeli/ha-ariston` with category **Integration**.
+4. Search for **Ariston NET**, install it and restart Home Assistant.
+
+### Manual
+
+Copy the `custom_components/ariston` folder to your `configuration/custom_components` path, then restart Home Assistant.
+
+Use the **Add integration** UI to set up your device.
 
 > **Fork note:** HACS installs this fork from its releases. The release asset must contain the integration files at the ZIP root (no extra `ariston/` folder), because HACS extracts it directly into `custom_components/ariston`.
 
