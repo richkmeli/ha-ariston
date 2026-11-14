@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-15
+
 ### Added
 
 - GALEVO diagnostics: a zoned `CH heat request` binary sensor and an opt-in estimated `DHW flame` binary sensor.
