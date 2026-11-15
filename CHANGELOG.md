@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-15
+
 ### Fixed
 
 - **Removed the remaining Home Assistant deprecation warnings.** Water heater and climate entities now expose the `native_temperature_unit`, `native_current_temperature` and `native_target_temperature` properties introduced in Home Assistant 2026.11, while retaining the legacy names only on older releases.
