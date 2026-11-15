@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from ariston.const import DeviceProperties, SystemType, WheType
+from homeassistant.const import UnitOfTemperature
 
 from custom_components.ariston import _async_migrate_device_identifier
 from custom_components.ariston.climate import AristonThermostat
@@ -13,6 +14,7 @@ from custom_components.ariston.const import (
     ARISTON_CLIMATE_TYPES,
     ARISTON_NUMBER_TYPES,
     ARISTON_SENSOR_TYPES,
+    DOMAIN,
 )
 from custom_components.ariston.entity import (
     AristonEntity,
@@ -209,6 +211,12 @@ async def test_migrate_entity_unique_ids_without_zones(monkeypatch):
     await async_migrate_entity_unique_ids(MagicMock(), entry, device)
 
 
+def _migration_entry():
+    entry = MagicMock()
+    entry.entry_id = "entry-id"
+    return entry
+
+
 def test_migrate_device_identifier_without_serial(monkeypatch):
     """A legacy shared empty identifier is replaced by the gateway."""
     device = _device(serial_number=None)
@@ -216,11 +224,16 @@ def test_migrate_device_identifier_without_serial(monkeypatch):
     legacy_device.id = "device-id"
     legacy_device.identifiers = {("ariston", "")}
     registry = MagicMock()
-    registry.async_get_device.side_effect = [None, legacy_device]
+    registry.async_get_device_by_identifier.side_effect = [None, legacy_device]
     monkeypatch.setattr("custom_components.ariston.dr.async_get", lambda hass: registry)
 
-    _async_migrate_device_identifier(MagicMock(), device)
+    _async_migrate_device_identifier(MagicMock(), _migration_entry(), device)
 
+    assert registry.async_get_device_by_identifier.call_args_list == [
+        call((DOMAIN, "gw"), "entry-id"),
+        call((DOMAIN, ""), "entry-id"),
+    ]
+    registry.async_get_device.assert_not_called()
     registry.async_update_device.assert_called_once_with(
         "device-id",
         new_identifiers={("ariston", "gw")},
@@ -234,11 +247,16 @@ def test_migrate_device_identifier_keeps_serial(monkeypatch):
     legacy_device.id = "device-id"
     legacy_device.identifiers = {("ariston", "SN123")}
     registry = MagicMock()
-    registry.async_get_device.side_effect = [None, legacy_device]
+    registry.async_get_device_by_identifier.side_effect = [None, legacy_device]
     monkeypatch.setattr("custom_components.ariston.dr.async_get", lambda hass: registry)
 
-    _async_migrate_device_identifier(MagicMock(), device)
+    _async_migrate_device_identifier(MagicMock(), _migration_entry(), device)
 
+    assert registry.async_get_device_by_identifier.call_args_list == [
+        call((DOMAIN, "gw"), "entry-id"),
+        call((DOMAIN, "SN123"), "entry-id"),
+    ]
+    registry.async_get_device.assert_not_called()
     registry.async_update_device.assert_called_once_with(
         "device-id",
         new_identifiers={("ariston", "SN123"), ("ariston", "gw")},
@@ -249,11 +267,15 @@ def test_migrate_device_identifier_is_idempotent(monkeypatch):
     """A device already registered by gateway is left untouched."""
     device = _device()
     registry = MagicMock()
-    registry.async_get_device.return_value = MagicMock()
+    registry.async_get_device_by_identifier.return_value = MagicMock()
     monkeypatch.setattr("custom_components.ariston.dr.async_get", lambda hass: registry)
 
-    _async_migrate_device_identifier(MagicMock(), device)
+    _async_migrate_device_identifier(MagicMock(), _migration_entry(), device)
 
+    registry.async_get_device_by_identifier.assert_called_once_with(
+        (DOMAIN, "gw"), "entry-id"
+    )
+    registry.async_get_device.assert_not_called()
     registry.async_update_device.assert_not_called()
 
 
@@ -270,3 +292,32 @@ def test_climate_names_include_zone_only_when_needed():
 
     device.zone_numbers = [1]
     assert thermostat.name == "Boiler"
+
+
+def _temperature_attribute(entity, name):
+    """Read the temperature property exposed by the current HA API."""
+    native_name = f"native_{name}"
+    if hasattr(type(entity), native_name):
+        return getattr(entity, native_name)
+    return getattr(entity, name)
+
+
+def test_climate_temperature_properties_use_ha_api():
+    """Climate temperatures and unit follow the API of the running HA version."""
+    device = _device()
+    device.get_measured_temp_unit.return_value = UnitOfTemperature.CELSIUS
+    device.get_measured_temp_value.return_value = 21.5
+    device.get_target_temp_value.return_value = 22.5
+    coordinator = _coordinator(device)
+
+    thermostat = AristonThermostat(1, coordinator, ARISTON_CLIMATE_TYPES[0])
+
+    assert _temperature_attribute(thermostat, "temperature_unit") == (
+        UnitOfTemperature.CELSIUS
+    )
+    assert _temperature_attribute(thermostat, "current_temperature") == 21.5
+    assert _temperature_attribute(thermostat, "target_temperature") == 22.5
+
+    if hasattr(type(thermostat), "native_temperature_unit"):
+        assert "native_temperature_unit" in vars(AristonThermostat)
+        assert "temperature_unit" not in vars(AristonThermostat)

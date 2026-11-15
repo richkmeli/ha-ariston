@@ -25,6 +25,14 @@ from .entity import AristonEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+# Home Assistant 2026.11 introduced the native temperature properties and
+# deprecated the old names, which are still required by the minimum supported
+# version (2026.8).
+_HAS_NATIVE_TEMPERATURE_API = hasattr(
+    WaterHeaterEntity,
+    "native_temperature_unit",
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
@@ -77,22 +85,44 @@ class AristonWaterHeater(AristonEntity, WaterHeaterEntity):
         """Return the icon to use in the frontend."""
         return "mdi:water-boiler"
 
-    @property
-    def current_temperature(self):
-        """Return the temperature."""
-        temp = self.device.water_heater_current_temperature
-        return self._convert_temp(temp)
+    if _HAS_NATIVE_TEMPERATURE_API:
+
+        @property
+        def native_temperature_unit(self):
+            """Return the unit the entity reports temperatures in."""
+            return self._reported_temperature_unit()
+
+        @property
+        def native_current_temperature(self):
+            """Return the current temperature in the native unit."""
+            return self._reported_current_temperature()
+
+        @property
+        def native_target_temperature(self):
+            """Return the target temperature in the native unit."""
+            return self._reported_target_temperature()
+
+    else:
+
+        @property
+        def temperature_unit(self):
+            """Return the unit the entity reports temperatures in."""
+            return self._reported_temperature_unit()
+
+        @property
+        def current_temperature(self):
+            """Return the current temperature."""
+            return self._reported_current_temperature()
+
+        @property
+        def target_temperature(self):
+            """Return the temperature we try to reach."""
+            return self._reported_target_temperature()
 
     @property
     def min_temp(self):
         """Return the minimum temperature."""
         temp = self.device.water_heater_minimum_temperature
-        return self._convert_temp(temp)
-
-    @property
-    def target_temperature(self):
-        """Return the temperature we try to reach."""
-        temp = self.device.water_heater_target_temperature
         return self._convert_temp(temp)
 
     @property
@@ -106,14 +136,23 @@ class AristonWaterHeater(AristonEntity, WaterHeaterEntity):
         """Return the precision of temperature for the device."""
         return 1 / 10**self.device.water_heater_temperature_decimals
 
-    @property
-    def temperature_unit(self):
-        """Return the unit of measurement."""
+    def _reported_temperature_unit(self):
+        """Return the override unit or the unit reported by the device."""
         if self._temp_unit_override == "celsius":
             return UnitOfTemperature.CELSIUS
         if self._temp_unit_override == "fahrenheit":
             return UnitOfTemperature.FAHRENHEIT
         return self.device.water_heater_temperature_unit
+
+    def _reported_current_temperature(self):
+        """Return the current temperature in the reported unit."""
+        temp = self.device.water_heater_current_temperature
+        return self._convert_temp(temp)
+
+    def _reported_target_temperature(self):
+        """Return the target temperature in the reported unit."""
+        temp = self.device.water_heater_target_temperature
+        return self._convert_temp(temp)
 
     def _convert_temp(self, temp):
         """Convert temperature based on override setting."""

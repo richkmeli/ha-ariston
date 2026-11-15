@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from ariston.const import (
@@ -14,7 +14,11 @@ from ariston.const import (
     VelisDeviceProperties,
     WheType,
 )
-from homeassistant.components.water_heater import WaterHeaterEntityFeature
+from homeassistant.components.water_heater import (
+    WaterHeaterEntity,
+    WaterHeaterEntityFeature,
+)
+from homeassistant.const import UnitOfTemperature
 
 from custom_components.ariston import (
     binary_sensor,
@@ -26,6 +30,7 @@ from custom_components.ariston import (
 )
 from custom_components.ariston.const import (
     BUS_ERRORS_COORDINATOR,
+    CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE,
     COORDINATOR,
     DEVICE_FEATURE_DHW_FLAME,
     DEVICE_FEATURE_ZONE_HEAT_REQUEST,
@@ -214,3 +219,76 @@ async def test_water_heater_setup_and_attributes(hass, entry):
     attributes = entity.extra_state_attributes
     assert attributes["power"] == "on"
     assert attributes["heating"] is True
+
+
+def _temperature_attribute(entity, name):
+    """Read the temperature property exposed by the current HA API."""
+    native_name = f"native_{name}"
+    if hasattr(type(entity), native_name):
+        return getattr(entity, native_name)
+    return getattr(entity, name)
+
+
+async def test_water_heater_temperature_override_uses_ha_api(hass, entry, coordinator):
+    """The unit override converts readings and writes through the HA API."""
+    device = coordinator.device
+    device.water_heater_temperature_unit = UnitOfTemperature.FAHRENHEIT
+    device.water_heater_current_temperature = 122.0
+    device.water_heater_target_temperature = 140.0
+    device.water_heater_minimum_temperature = 100.0
+    device.water_heater_maximum_temperature = 150.0
+    device.water_heater_temperature_decimals = 1
+    device.async_set_water_heater_temperature = AsyncMock()
+    coordinator.pending_writes = {}
+    coordinator.config_entry.options = {
+        CONF_WATER_HEATER_TEMPERATURE_UNIT_OVERRIDE: "celsius"
+    }
+
+    async_add_entities = MagicMock()
+    await water_heater.async_setup_entry(hass, entry, async_add_entities)
+    entity = _created(async_add_entities)[0]
+
+    assert _temperature_attribute(entity, "temperature_unit") == (
+        UnitOfTemperature.CELSIUS
+    )
+    assert _temperature_attribute(entity, "current_temperature") == pytest.approx(50.0)
+    assert _temperature_attribute(entity, "target_temperature") == pytest.approx(60.0)
+    assert entity.min_temp == pytest.approx((100 - 32) * 5 / 9)
+    assert entity.max_temp == pytest.approx((150 - 32) * 5 / 9)
+    entity.async_write_ha_state = MagicMock()
+
+    await entity.async_set_temperature(temperature=60.0)
+
+    device.async_set_water_heater_temperature.assert_awaited_once_with(140.0)
+    assert coordinator.pending_writes["temperature"].expected == 140.0
+
+    if hasattr(WaterHeaterEntity, "native_temperature_unit"):
+        assert "native_temperature_unit" in vars(water_heater.AristonWaterHeater)
+        assert "temperature_unit" not in vars(water_heater.AristonWaterHeater)
+
+
+async def test_water_heater_auto_unit_keeps_device_values(hass, entry, coordinator):
+    """Without an override, readings and writes stay in the device unit."""
+    device = coordinator.device
+    device.water_heater_temperature_unit = UnitOfTemperature.FAHRENHEIT
+    device.water_heater_current_temperature = 122.0
+    device.water_heater_target_temperature = 140.0
+    device.water_heater_temperature_decimals = 1
+    device.async_set_water_heater_temperature = AsyncMock()
+    coordinator.pending_writes = {}
+    coordinator.config_entry.options = {}
+
+    async_add_entities = MagicMock()
+    await water_heater.async_setup_entry(hass, entry, async_add_entities)
+    entity = _created(async_add_entities)[0]
+
+    assert _temperature_attribute(entity, "temperature_unit") == (
+        UnitOfTemperature.FAHRENHEIT
+    )
+    assert _temperature_attribute(entity, "current_temperature") == 122.0
+    assert _temperature_attribute(entity, "target_temperature") == 140.0
+    entity.async_write_ha_state = MagicMock()
+
+    await entity.async_set_temperature(temperature=140.0)
+
+    device.async_set_water_heater_temperature.assert_awaited_once_with(140.0)

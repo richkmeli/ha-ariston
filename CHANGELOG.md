@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Removed the remaining Home Assistant deprecation warnings.** Water heater and climate entities now expose the `native_temperature_unit`, `native_current_temperature` and `native_target_temperature` properties introduced in Home Assistant 2026.11, while retaining the legacy names only on older releases.
+- **Device registry lookups are scoped to the config entry.** The legacy device identifier migration now uses `async_get_device_by_identifier`, so identifiers shared across config entries can no longer resolve to the wrong device.
+
 ## [2.1.0] - 2026-11-15
 
 ### Added

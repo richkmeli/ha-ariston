@@ -115,7 +115,7 @@ def _async_get_target_coordinator(
 
 
 def _async_migrate_device_identifier(
-    hass: HomeAssistant, device: AristonBaseDevice
+    hass: HomeAssistant, entry: ConfigEntry, device: AristonBaseDevice
 ) -> None:
     """Move legacy serial/empty device identifiers to the gateway.
 
@@ -123,6 +123,9 @@ def _async_migrate_device_identifier(
     identifier, merging unrelated devices into one registry entry.  The
     gateway is always available and unique per physical device.  Existing
     devices are migrated in place so areas, names and entity links survive.
+
+    Device identifiers are only unique within a config entry, so all lookups
+    are scoped to the entry being set up.
     """
     gateway = device.gateway
     if not gateway:
@@ -130,11 +133,16 @@ def _async_migrate_device_identifier(
 
     registry = dr.async_get(hass)
     gateway_identifier = (DOMAIN, gateway)
-    if registry.async_get_device(identifiers={gateway_identifier}) is not None:
+    if (
+        registry.async_get_device_by_identifier(gateway_identifier, entry.entry_id)
+        is not None
+    ):
         return
 
     legacy_identifier = (DOMAIN, device.serial_number or "")
-    legacy_device = registry.async_get_device(identifiers={legacy_identifier})
+    legacy_device = registry.async_get_device_by_identifier(
+        legacy_identifier, entry.entry_id
+    )
     if legacy_device is None:
         return
 
@@ -301,7 +309,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AristonConfigEntry) -> b
 
         # Migrate registry data after the first poll, when features and zones
         # are populated, but before platforms register their entities.
-        _async_migrate_device_identifier(hass, device)
+        _async_migrate_device_identifier(hass, entry, device)
         await async_migrate_entity_unique_ids(hass, entry, device)
 
         coordinators: dict[str, DeviceDataUpdateCoordinator] = {

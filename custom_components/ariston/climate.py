@@ -22,6 +22,14 @@ from .entity import AristonEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+# Home Assistant 2026.11 introduced the native temperature properties and
+# deprecated the old names, which are still required by the minimum supported
+# version (2026.8).
+_HAS_NATIVE_TEMPERATURE_API = hasattr(
+    ClimateEntity,
+    "native_temperature_unit",
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: AristonConfigEntry, async_add_entities
@@ -79,10 +87,39 @@ class AristonThermostat(AristonEntity, ClimateEntity):
             return "mdi:radiator"
         return "mdi:radiator-off"
 
-    @property
-    def temperature_unit(self) -> str:
-        """Return the temperature units for the device."""
-        return self.device.get_measured_temp_unit(self.zone)
+    if _HAS_NATIVE_TEMPERATURE_API:
+
+        @property
+        def native_temperature_unit(self) -> str:
+            """Return the unit the entity reports temperatures in."""
+            return self.device.get_measured_temp_unit(self.zone)
+
+        @property
+        def native_current_temperature(self) -> float:
+            """Return the reported current temperature in the native unit."""
+            return self.device.get_measured_temp_value(self.zone)
+
+        @property
+        def native_target_temperature(self) -> float:
+            """Return the target temperature in the native unit."""
+            return self.device.get_target_temp_value(self.zone)
+
+    else:
+
+        @property
+        def temperature_unit(self) -> str:
+            """Return the temperature units for the device."""
+            return self.device.get_measured_temp_unit(self.zone)
+
+        @property
+        def current_temperature(self) -> float:
+            """Return the reported current temperature for the device."""
+            return self.device.get_measured_temp_value(self.zone)
+
+        @property
+        def target_temperature(self) -> float:
+            """Return the target temperature for the device."""
+            return self.device.get_target_temp_value(self.zone)
 
     @property
     def precision(self) -> float:
@@ -103,16 +140,6 @@ class AristonThermostat(AristonEntity, ClimateEntity):
     def target_temperature_step(self) -> float:
         """Return the target temperature step support by the device."""
         return self.device.get_target_temp_step(self.zone)
-
-    @property
-    def current_temperature(self) -> float:
-        """Return the reported current temperature for the device."""
-        return self.device.get_measured_temp_value(self.zone)
-
-    @property
-    def target_temperature(self) -> float:
-        """Return the target temperature for the device."""
-        return self.device.get_target_temp_value(self.zone)
 
     @property
     def supported_features(self) -> int:
